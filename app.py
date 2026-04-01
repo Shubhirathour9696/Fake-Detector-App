@@ -370,4 +370,4 @@ TECHNICAL FORENSICS:
 
 FINAL VERDICT: {verdict_text}
 OVERALL TRUST SCORE: {total_real:.0f}/200 ({total_real/2:.1f}%)
-CONFIDENCE LEVEL: {overall_confidence
+CONFIDENCE LEVEL: {overall_confidence}
