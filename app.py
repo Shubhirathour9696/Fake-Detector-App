@@ -16,8 +16,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-st.markdown("""
+# Complete CSS
+css = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
 .main {background: linear-gradient(135deg,#0a0a0a 0%,#1a1a2e 50%,#16213e 100%)!important;color:#00ff88!important;font-family:'Orbitron',monospace!important;}
-.logo{font-size:4.5rem!important;font-weight:900!important;background:linear-gradient(45deg
+.logo{font-size:4.5rem!important;font-weight:900!important;background:linear-gradient(45deg,#00ff88 0%,#00ccff 25%,#ff00ff 50%,
