@@ -184,7 +184,7 @@ if st.session_state.analysis_complete and st.session_state.results:
     total_real = results['real_fake']['real'] + results['ai_generation']['human_created']
     overall_confidence = (results['real_fake']['confidence'] + results['ai_generation']['confidence']) / 2
     
-    verdict_text = "✅ AUTHENTIC DOCUMENT" if total_real > 160 else "⚠️ QUESTIONABLE" if total_real > 110 else "❌ CONFIRMED FABRICATION"
+    verdict_text = "✅ AUTHENTIC DOCUMENT" if total_real > 160 else "⚠️ QUESTIONABLE" if total_real > 110 else "❌ CONFIRMED FAKE/AI GENERATED"
     verdict_color = "#00ff88" if total_real > 160 else "#ffaa00" if total_real > 110 else "#ff4444"
     
     st.markdown(f"""
