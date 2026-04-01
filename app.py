@@ -46,8 +46,7 @@ st.markdown("""
 # Header
 st.markdown("""
 <div class="header">
-<div class="header">
-    <h1 class="logo">🔍 ULTIMATE DETECTOR v2</h1>
+    <h1 class="logo">🔍 ULTIMATE DETECTOR v2.0</h1>
     <p style="font-size:1.3rem;opacity:0.95;">Real/Fake + AI Detection + Google Search + Advanced Forensics + PDF Report</p>
 </div>
 """, unsafe_allow_html=True)
