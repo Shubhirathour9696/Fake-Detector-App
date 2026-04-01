@@ -17,7 +17,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS (same as before)
+# Custom CSS
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
@@ -43,7 +43,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 🔬 REAL FORENSIC ANALYSIS - FIXED VERSION
+# 🔬 REAL FORENSIC ANALYSIS
 @st.cache_data
 def analyze_image_real(_img_bytes):
     """Advanced forensic analysis with AI detection signatures"""
@@ -52,63 +52,43 @@ def analyze_image_real(_img_bytes):
         img_array = np.array(img, dtype=np.float32) / 255.0
         h, w, _ = img_array.shape
         
-        # 1. ENTROPY ANALYSIS (AI images have lower entropy)
+        # 1. ENTROPY ANALYSIS
         flat_img = img_array.flatten()
         hist, _ = np.histogram(flat_img, bins=256, density=True)
         hist = hist[hist > 0]
         entropy = -np.sum(hist * np.log2(hist + 1e-12))
         
-        # 2. NOISE PATTERN ANALYSIS (AI has unnatural noise)
+        # 2. LAPLACIAN VARIANCE (key AI detector)
         gray = np.mean(img_array, axis=2)
-        laplacian = np.array([
-            [-1, -1, -1],
-            [-1,  8, -1],
-            [-1, -1, -1]
-        ]) / 8.0
+        laplacian = np.array([[-1, -1, -1], [-1,  8, -1], [-1, -1, -1]]) / 8.0
+        laplacian_var = np.var(np.gradient(np.gradient(gray)))
         
-        # Apply Laplacian filter
-        from scipy.signal import convolve2d
-        laplacian_var = np.var(convolve2d(gray, laplacian, mode='same'))
+        # 3. EDGE ANALYSIS
+        edges_x = np.abs(np.diff(gray, axis=1))
+        edges_y = np.abs(np.diff(gray, axis=0))
+        edge_sharpness = np.mean(np.sqrt(edges_x**2 + edges_y**2))
         
-        # 3. EDGE ANALYSIS (AI edges are too perfect)
-        sobel_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])
-        sobel_y = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]])
-        edges_x = convolve2d(gray, sobel_x, mode='same')
-        edges_y = convolve2d(gray, sobel_y, mode='same')
-        edge_magnitude = np.sqrt(edges_x**2 + edges_y**2)
-        edge_sharpness = np.mean(edge_magnitude[edge_magnitude > 0.1])
+        # 4. NOISE ANALYSIS
+        noise_level = np.std(np.diff(gray.flatten()))
         
-        # 4. COLOR DISTRIBUTION (AI has unnatural color clustering)
+        # 5. COLOR ANALYSIS
         color_std = np.std(img_array, axis=(0,1))
-        color_balance = np.min(color_std) / np.max(color_std)
-        
-        # 5. JPEG ARTIFACTS (AI images have different compression patterns)
-        if img.mode == 'RGB':
-            y, cb, cr = img_array[:,:,:1], img_array[:,:,1:2], img_array[:,:,2:3]
-            dct_blocks = []
-            block_size = 8
-            for i in range(0, h-block_size, block_size):
-                for j in range(0, w-block_size, block_size):
-                    block = y[i:i+block_size, j:j+block_size]
-                    # Simplified DCT energy
-                    dct_energy = np.sum(np.abs(np.fft.fft2(block)[:4,:4]))
-                    dct_blocks.append(dct_energy)
-            jpeg_artifacts = np.std(dct_blocks) if dct_blocks else 0.1
+        color_balance = np.min(color_std) / (np.max(color_std) + 1e-8)
         
         return {
             'entropy': entropy,
             'laplacian_var': laplacian_var,
             'edge_sharpness': edge_sharpness,
             'color_balance': color_balance,
-            'jpeg_artifacts': jpeg_artifacts,
+            'noise_level': noise_level,
             'width': img.width,
             'height': img.height,
-            'natural_noise': np.std(np.diff(gray)) * 100
+            'natural_noise': noise_level * 100
         }
     except:
         return {
             'entropy': 7.0, 'laplacian_var': 100, 'edge_sharpness': 0.08,
-            'color_balance': 0.6, 'jpeg_artifacts': 0.05, 'width': 1024,
+            'color_balance': 0.6, 'noise_level': 0.02, 'width': 1024,
             'height': 768, 'natural_noise': 2.0
         }
 
@@ -133,10 +113,6 @@ def generate_accurate_results(metrics):
     # Unnatural color balance
     if metrics['color_balance'] < 0.4: ai_indicators += 15
     
-    # Low JPEG artifacts = AI (no compression noise)
-    if metrics['jpeg_artifacts'] < 0.03: ai_indicators += 18
-    
-    # High confidence AI
     ai_score = min(98, ai_indicators + random.randint(-5, 8))
     human_score = 100 - ai_score
     
@@ -177,8 +153,6 @@ def generate_accurate_results(metrics):
         }
     }
 
-# [REST OF THE UI CODE REMAINS IDENTICAL - just replace the analysis functions above]
-
 # Session state
 if 'analysis_complete' not in st.session_state:
     st.session_state.analysis_complete = False
@@ -189,7 +163,7 @@ if 'image' not in st.session_state:
 if 'image_hash' not in st.session_state:
     st.session_state.image_hash = None
 
-# Header (same)
+# Header
 st.markdown("""
 <div class="header">
     <h1 class="logo">🔍 ULTIMATE DETECTOR v2.0</h1>
@@ -197,7 +171,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Sidebar (same)
+# Sidebar
 with st.sidebar:
     st.markdown("### 🎛️ Control Panel")
     st.markdown("**🔬 Real Forensics:** Active")
@@ -209,7 +183,7 @@ with st.sidebar:
             del st.session_state[key]
         st.rerun()
 
-# Main upload (same)
+# Main upload
 st.markdown('<div class="card">', unsafe_allow_html=True)
 st.markdown('<h2 class="report-title">📁 Upload Image</h2>', unsafe_allow_html=True)
 
@@ -224,7 +198,7 @@ with col_upload1:
 with col_upload2:
     analyze_clicked = st.button("🚀 FULL ANALYSIS", type="primary", use_container_width=True)
 
-# Image preview (same)
+# Image preview
 if uploaded_file:
     try:
         st.session_state.image = Image.open(uploaded_file)
@@ -243,7 +217,7 @@ if uploaded_file:
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# ✅ FIXED ANALYSIS
+# Analysis
 if analyze_clicked and st.session_state.image:
     with st.spinner('🔬 Professional Forensic Analysis...'):
         progress_bar = st.progress(0)
@@ -264,7 +238,7 @@ if analyze_clicked and st.session_state.image:
     st.success("✅ PROFESSIONAL ANALYSIS COMPLETE!")
     st.balloons()
 
-# Results display (same as original - works perfectly with new analysis)
+# Results
 if st.session_state.analysis_complete and st.session_state.results:
     results = st.session_state.results
     metrics = results.get('metrics', {})
@@ -304,7 +278,7 @@ if st.session_state.analysis_complete and st.session_state.results:
     
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # Technical + Forensic
+    # Technical
     st.markdown('<div class="card">', unsafe_allow_html=True)
     st.markdown("### ⚙️ TECHNICAL FORENSICS")
     
@@ -324,7 +298,7 @@ if st.session_state.analysis_complete and st.session_state.results:
     
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # FINAL VERDICT - NOW CORRECT!
+    # Verdict
     total_real = results['real_fake']['real'] + results['ai_generation']['human_created']
     confidence = (results['real_fake']['confidence'] + results['ai_generation']['confidence']) / 2
     
@@ -348,16 +322,30 @@ if st.session_state.analysis_complete and st.session_state.results:
     </div>
     ''', unsafe_allow_html=True)
     
-    # Download report
+    # ✅ FIXED REPORT - No syntax error
     report = (
-        f"🔍 PROFESSIONAL FORENSICS REPORT\n"
-        f"Generated: {results['timestamp']}\n"
-        f"Image ID: {results['image_hash'][:8]}\n\n"
-        f"REAL/FAKE: {int(results['real_fake']['real'])}% Real / {int(results['real_fake']['fake'])}% Fake\n"
-        f"AI DETECT: {int(results['ai_generation']['ai_generated'])}% AI / {int(results['ai_generation']['human_created'])}% Human\n\n"
-        f"KEY METRICS:\n"
-        f"  Entropy: {results['technical']['entropy']}\n"
-        f"  Laplacian: {results['technical']['laplacian_var']}\n"
-        f"  Edge Sharpness: {results['forensic']['edge_quality']}\n"
-        f"  Natural Noise: {results['forensic']['natural_noise']}\n\n"
-        f"FINAL: {verdict}\
+        "🔍 PROFESSIONAL FORENSICS REPORT\n" +
+        f"Generated: {results['timestamp']}\n" +
+        f"Image ID: {results['image_hash'][:8]}\n\n" +
+        f"REAL/FAKE: {int(results['real_fake']['real'])}% Real / {int(results['real_fake']['fake'])}% Fake\n" +
+        f"AI DETECT: {int(results['ai_generation']['ai_generated'])}% AI / {int(results['ai_generation']['human_created'])}% Human\n\n" +
+        f"KEY METRICS:\n" +
+        f"  Entropy: {results['technical']['entropy']}\n" +
+        f"  Laplacian: {results['technical']['laplacian_var']}\n" +
+        f"  Edge Quality: {results['forensic']['edge_quality']}\n" +
+        f"  Natural Noise: {results['forensic']['natural_noise']}\n\n" +
+        f"FINAL: {verdict}\n" +
+        f"Trust Score: {total_real:.0f}/200"
+    )
+    
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        st.download_button(
+            "📥 Download Report",
+            report,
+            file_name=f"forensic_report_{results['image_hash'][:8]}.txt",
+            mime="text/plain"
+        )
+    
+    st.markdown("---")
+    st.markdown("<p style='text-align:center;color:#00ccff;font-size:1rem;'>Ultimate Detector v2.0 | Professional Forensics</p>", unsafe_allow_html=True)
