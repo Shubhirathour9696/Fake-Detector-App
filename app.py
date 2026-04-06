@@ -52,15 +52,23 @@ def extract_features(image_bytes):
 
 # ================= ML PREDICTION =================
 def ml_prediction(features):
-    if model is None:
-        return 50.0
+    laplacian, edge, entropy, noise = features
 
-    try:
-        pred = model.predict_proba([features])[0][1]
-        return float(pred * 100)
-    except:
-        return 50.0
+    score = 0
 
+    if laplacian < 50:
+        score += 30   # smooth → AI
+
+    if edge < 0.05:
+        score += 25   # low detail → AI
+
+    if entropy > 7.5:
+        score += 20   # uniform → AI
+
+    if noise < 0.02:
+        score += 25   # too clean → AI
+
+    return score
 # ================= FINAL DECISION =================
 def final_decision(ai_prob):
     ai_prob = max(5, min(95, ai_prob))
