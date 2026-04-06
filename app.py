@@ -2,7 +2,10 @@ import streamlit as st
 import numpy as np
 from PIL import Image
 import io
-import cv2
+try:
+    import cv2
+except:
+    cv2 = None
 import time
 from tensorflow.keras.models import load_model
 
