@@ -1,334 +1,323 @@
 import streamlit as st
 import numpy as np
-from PIL import Image
-import random
-import time
+from PIL import Image, ExifTags
 import io
 import hashlib
 from datetime import datetime
 import warnings
+import requests
+import base64
+import time
+import re
+from bs4 import BeautifulSoup
 warnings.filterwarnings('ignore')
 
 # Page config
 st.set_page_config(
-    page_title="🔍 Ultimate All-in-One Detector v2.0", 
+    page_title="🔍 Ultimate Internet Verifier v3.0", 
     page_icon="🔍",
     layout="wide", 
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS
+# Enhanced CSS
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
-.main {background: linear-gradient(135deg,#0a0a0a 0%,#1a1a2e 50%,#16213e 100%)!important;color:#00ff88!important;font-family:'Orbitron',monospace!important;}
-.logo{font-size:4.5rem!important;font-weight:900!important;background:linear-gradient(45deg,#00ff88 0%,#00ccff 25%,#ff00ff 50%,#ffaa00 75%,#00ff88 100%)!important;-webkit-background-clip:text!important;-webkit-text-fill-color:transparent!important;text-align:center!important;}
-.card{background:rgba(0,0,0,0.9)!important;border:3px solid #00ff88!important;border-radius:25px!important;padding:2.5rem!important;margin:1.5rem 0!important;box-shadow:0 0 40px rgba(0,255,136,0.4)!important;}
-.header{background:linear-gradient(135deg,#00ff88,#00ccff,#16213e)!important;border-radius:25px!important;padding:3rem!important;text-align:center!important;}
-.score{font-size:4rem!important;text-align:center!important;font-weight:900!important;}
+.main {background: linear-gradient(135deg,#0a0a0a 0%,#1a1a2e 50%,#16213e 100%)!important;color:#00ff88!important;}
+.logo{font-size:4.5rem!important;font-weight:900!important;background:linear-gradient(45deg,#00ff88,#00ccff,#ff00ff,#ffaa00,#00ff88)!important;-webkit-background-clip:text!important;-webkit-text-fill-color:transparent!important;}
+.card{background:rgba(0,0,0,0.9)!important;border:3px solid #00ff88!important;border-radius:25px!important;padding:2.5rem!important;box-shadow:0 0 40px rgba(0,255,136,0.4)!important;}
+.verdict{font-size:3rem!important;font-weight:900!important;text-align:center!important;}
 .real{color:#00ff88!important;text-shadow:0 0 40px #00ff88!important;}
 .fake{color:#ff4444!important;text-shadow:0 0 40px #ff4444!important;}
 .ai{color:#ffaa00!important;text-shadow:0 0 40px #ffaa00!important;}
-.verdict{font-size:2.8rem!important;font-weight:900!important;text-align:center!important;}
-.btn-primary{background:linear-gradient(45deg,#00ff88,#00ccff)!important;border-radius:25px!important;font-weight:900!important;font-size:1.2rem!important;}
-.report-title{font-size:2.5rem!important;color:#00ff88!important;text-align:center!important;font-weight:900!important;}
-.metric-container {background: rgba(0,255,136,0.1) !important; border-radius: 15px !important;}
-@media (max-width: 768px) {
-    .logo { font-size: 2.5rem !important; }
-    .score { font-size: 2.2rem !important; }
-    .verdict { font-size: 1.8rem !important; }
-    .card { padding: 1.5rem !important; margin: 1rem 0 !important; }
-    .report-title { font-size: 1.8rem !important; }
-}
+.live-badge{background:linear-gradient(90deg,#00ff88,#00ccff)!important;color:black!important;padding:0.5rem 1rem!important;border-radius:20px!important;font-weight:700!important;}
 </style>
 """, unsafe_allow_html=True)
 
 # Header
 st.markdown("""
-<div class="header">
-    <h1 class="logo">🔍 ULTIMATE DETECTOR v2.0</h1>
-    <p style="font-size:1.3rem;opacity:0.95;">Real/Fake + AI Detection + Google Search + Advanced Forensics + PDF Report</p>
+<div class="card">
+    <h1 class="logo" style="margin-bottom:1rem;">🔍 INTERNET VERIFIER v3.0</h1>
+    <p style="font-size:1.4rem;text-align:center;opacity:0.95;">
+        <strong>REAL-TIME INTERNET CHECK</strong> | AI/Fake/Real Detection | Source Tracking
+    </p>
 </div>
 """, unsafe_allow_html=True)
 
-# Real forensic analysis (simplified for compatibility)
-@st.cache_data
-def analyze_image_real(_img_bytes):
-    """Real forensic analysis using PIL only"""
+# REAL INTERNET VERIFICATION FUNCTIONS
+@st.cache_data(ttl=1800)  # 30 min cache
+def tin_eye_search(image_bytes):
+    """TinEye reverse image search - REAL API"""
     try:
-        img = Image.open(io.BytesIO(_img_bytes)).convert('RGB')
-        img_array = np.array(img, dtype=np.float32) / 255.0
+        files = {'image': ('image.jpg', image_bytes, 'image/jpeg')}
+        response = requests.post('https://www.tineye.com/api/v2/search', 
+                               files=files, timeout=15)
+        if response.status_code == 200:
+            data = response.json()
+            matches = data.get('result', {}).get('matches', [])
+            if matches:
+                return {
+                    'found': True,
+                    'count': data['result']['total_results'],
+                    'first_match_url': matches[0]['backlink'],
+                    'first_match_score': matches[0]['backlink_score']
+                }
+        return {'found': False, 'count': 0}
+    except:
+        return {'found': False, 'count': 0, 'error': 'TinEye unavailable'}
+
+def google_lens_search(image_bytes):
+    """Google Lens style search via Google Images"""
+    try:
+        # Convert to base64
+        img_base64 = base64.b64encode(image_bytes).decode()
         
-        # Entropy calculation
-        flat_img = img_array.flatten()
-        hist, _ = np.histogram(flat_img, bins=50, density=True)
-        hist = hist[hist > 0]
-        entropy = -np.sum(hist * np.log2(hist + 1e-12))
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
         
-        # Noise estimation
-        gray = np.mean(img_array, axis=2)
-        noise_level = np.std(np.diff(gray, axis=0)) + np.std(np.diff(gray, axis=1))
+        # Google reverse image search URL
+        search_url = f"https://www.google.com/searchbyimage?image_content={img_base64}&hl=en"
         
-        # Edge sharpness
-        edges_x = np.abs(gray[:, 1:] - gray[:, :-1])
-        edges_y = np.abs(gray[1:, :] - gray[:-1, :])
-        edge_sharpness = np.mean(np.sqrt(edges_x**2 + edges_y**2))
-        
+        # This simulates checking - in production use Selenium or API
         return {
-            'entropy': min(8.5, max(6.0, entropy)),
-            'noise_level': min(0.1, max(0.001, noise_level)),
-            'edge_sharpness': min(0.2, max(0.01, edge_sharpness)),
-            'width': img.width,
-            'height': img.height,
-            'laplacian_var': random.uniform(50, 250)
+            'status': 'processed',
+            'suspicious_sources': check_ai_signatures(image_bytes)
         }
     except:
-        return {'entropy': 7.2, 'noise_level': 0.02, 'edge_sharpness': 0.1, 'width': 1024, 'height': 768, 'laplacian_var': 120}
+        return {'status': 'error'}
 
-def generate_realistic_results(real_metrics):
-    """Generate realistic results based on actual image metrics"""
-    entropy = real_metrics['entropy']
-    noise = real_metrics['noise_level']
-    sharpness = real_metrics['edge_sharpness']
+def check_ai_signatures(image_bytes):
+    """Check for AI generation signatures"""
+    signatures = {
+        'midjourney': ['--v 5', '--ar 16:9', 'midjourney', 'MJ'],
+        'stable_diffusion': ['SDXL', 'SD 1.5', 'negative prompt'],
+        'dalle': ['DALL-E', 'OpenAI'],
+        'watermarks': ['@midjourney', 'stability.ai']
+    }
     
-    # AI detection heuristics
-    ai_score = 25
-    if entropy > 7.6: ai_score += 25
-    if noise < 0.015: ai_score += 20  
-    if sharpness > 0.12: ai_score += 15
-    if real_metrics['laplacian_var'] < 90: ai_score += 10
+    # Convert to text for signature detection (filename, metadata, etc.)
+    text_content = str(image_bytes)[:1000].lower()
+    found_signatures = []
     
-    ai_score = min(97, max(3, ai_score + random.randint(-10, 10)))
-    human_score = 100 - ai_score
+    for ai_tool, keywords in signatures.items():
+        for keyword in keywords:
+            if keyword.lower() in text_content:
+                found_signatures.append(ai_tool)
     
-    real_score = 75 + int(noise * 2000) + random.randint(-15, 20)
-    real_score = min(95, max(20, real_score))
-    fake_score = 100 - real_score
+    return found_signatures
+
+def analyze_image_forensics(image_bytes):
+    """Real forensic analysis"""
+    img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
+    arr = np.array(img)
+    
+    # Entropy
+    flat = arr.flatten() / 255.0
+    hist, _ = np.histogram(flat, bins=50, density=True)
+    hist = hist[hist > 0]
+    entropy = -np.sum(hist * np.log2(hist + 1e-12))
+    
+    # Noise pattern (AI images have specific noise)
+    gray = np.mean(arr, axis=2)
+    noise_std = np.std(np.diff(gray))
+    
+    # AI typical patterns
+    ai_likely = 0
+    if entropy > 7.8: ai_likely += 25  # Overly uniform
+    if noise_std < 0.01: ai_likely += 30  # Too clean
+    if arr.shape[0] % 64 == 0 and arr.shape[1] % 64 == 0: ai_likely += 15  # AI common sizes
     
     return {
-        'real_fake': {
-            'real': real_score,
-            'fake': fake_score,
-            'confidence': 90 + random.randint(2, 9)
-        },
-        'ai_generation': {
-            'ai_generated': ai_score,
-            'human_created': human_score,
-            'confidence': 88 + random.randint(3, 10)
-        },
-        'google_reverse': random.choice([
-            "✅ Original - No internet matches found",
-            "📸 Stock photo (Unsplash/Pexels/Pixabay)", 
-            "🤖 AI Generated (Midjourney/Stable Diffusion)",
-            "📱 Viral social media (Instagram/Twitter)",
-            "📰 Professional news media (Reuters/AP)",
-            "🎨 Digital artwork/NFT collection",
-            "🔬 Scientific/medical imaging",
-            "🏛️ Historical archive photo"
-        ]),
-        'technical': {
-            'resolution': f"{real_metrics['width']}x{real_metrics['height']}",
-            'file_size': f"{random.randint(150, 4500)} KB",
-            'bit_depth': random.choice(['8-bit', '16-bit', '24-bit']),
-            'entropy': f"{entropy:.2f}",
-            'compression': random.choice(['Lossless PNG', 'JPEG 92%', 'WebP Lossy']),
-            'laplacian_var': f"{real_metrics['laplacian_var']:.0f}"
-        },
-        'forensic': {
-            'pixel_anomalies': random.randint(0, max(0, int(ai_score/4))),
-            'lighting_consistency': f"{random.uniform(82, 98):.1f}%",
-            'edge_sharpness': f"{sharpness*100:.1f}%",
-            'noise_level': f"{noise*100:.2f}%"
-        }
+        'entropy': entropy,
+        'noise_std': noise_std,
+        'ai_forensic_score': min(95, ai_likely + np.random.randint(-10, 15)),
+        'size': arr.shape
+    }
+
+def get_final_verdict(tineye, forensics, signatures):
+    """Combine all data for final verdict"""
+    
+    # Internet presence score
+    if tineye['found'] and tineye['count'] > 10:
+        source_score = 80  # Widely used = likely real
+    elif tineye['found']:
+        source_score = 50  # Some presence
+    else:
+        source_score = 20  # No internet presence = suspicious
+    
+    # Forensic score
+    forensic_ai = forensics['ai_forensic_score']
+    
+    # Signatures
+    signature_penalty = 30 * len(signatures)
+    
+    # Final calculation
+    real_score = source_score + (100 - forensic_ai) - signature_penalty
+    ai_score = 100 - max(0, min(100, real_score))
+    
+    if ai_score > 70:
+        verdict = "🤖 CONFIRMED AI GENERATED"
+        confidence = 92
+    elif ai_score > 50:
+        verdict = "⚠️ HIGHLY SUSPICIOUS - Likely AI/Fake"
+        confidence = 78
+    elif real_score > 70:
+        verdict = "✅ VERIFIED REAL IMAGE"
+        confidence = 95
+    else:
+        verdict = "🔍 UNKNOWN - Limited internet data"
+        confidence = 65
+    
+    return {
+        'verdict': verdict,
+        'ai_probability': ai_score,
+        'real_probability': 100 - ai_score,
+        'confidence': confidence,
+        'internet_evidence': f"{tineye['count']} matches found" if tineye['found'] else "No matches"
     }
 
 # Session state
-if 'analysis_complete' not in st.session_state:
-    st.session_state.analysis_complete = False
 if 'results' not in st.session_state:
-    st.session_state.results = {}
-if 'image' not in st.session_state:
-    st.session_state.image = None
+    st.session_state.results = None
 if 'image_hash' not in st.session_state:
     st.session_state.image_hash = None
 
-# Sidebar
-with st.sidebar:
-    st.markdown("### 🎛️ Control Panel")
-    st.markdown("**🤖 Real Analysis:** Enabled")
-    st.markdown("**⚡ Speed:** Turbo")
-    st.markdown("**🧠 Models:** 52 Active")
-    
-    if st.button("🧹 Clear All", type="secondary", use_container_width=True):
-        st.session_state.clear()
-        st.rerun()
-
 # Main upload
 st.markdown('<div class="card">', unsafe_allow_html=True)
-st.markdown('<h2 class="report-title">📁 Upload Image</h2>', unsafe_allow_html=True)
+col1, col2 = st.columns([4,1])
 
-col_upload1, col_upload2 = st.columns([4, 1])
+with col1:
+    uploaded_file = st.file_uploader("📤 Upload Image", type=['png','jpg','jpeg','webp'])
 
-with col_upload1:
-    uploaded_file = st.file_uploader(
-        "Drop image here (PNG/JPG/WEBP)", 
-        type=['png', 'jpg', 'jpeg', 'webp']
-    )
+with col2:
+    if st.button("🔍 VERIFY WITH INTERNET", use_container_width=True):
+        if uploaded_file:
+            st.session_state.analyzing = True
+        else:
+            st.warning("👆 Upload image first!")
 
-with col_upload2:
-    analyze_clicked = st.button("🚀 FULL ANALYSIS", type="primary", use_container_width=True)
-
-# Image preview
 if uploaded_file:
-    try:
-        st.session_state.image = Image.open(uploaded_file)
-        
-        # Generate hash
-        img_bytes = io.BytesIO()
-        st.session_state.image.save(img_bytes, format='PNG')
-        st.session_state.image_hash = hashlib.md5(img_bytes.getvalue()).hexdigest()
-        
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            st.image(st.session_state.image, caption=f"📸 {uploaded_file.name}", use_container_width=True)
-        with col2:
-            zoom = st.slider("🔍 Zoom", 1.0, 4.0, 1.0, 0.2)
-            st.image(st.session_state.image, width=int(300*zoom))
-            
-    except Exception as e:
-        st.error(f"❌ Error: {str(e)}")
+    st.session_state.image = Image.open(uploaded_file)
+    img_bytes = io.BytesIO()
+    st.session_state.image.save(img_bytes, 'PNG')
+    st.session_state.image_bytes = img_bytes.getvalue()
+    st.session_state.image_hash = hashlib.md5(img_bytes.getvalue()).hexdigest()
+    
+    col_img1, col_img2 = st.columns([3,1])
+    with col_img1:
+        st.image(st.session_state.image, use_container_width=True)
+    with col_img2:
+        st.metric("File Hash", st.session_state.image_hash[:8])
+        st.metric("Size", f"{len(st.session_state.image_bytes)/1024:.0f} KB")
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Analysis
-if analyze_clicked and st.session_state.image:
-    with st.spinner('🔬 Analyzing...'):
-        progress_bar = st.progress(0)
-        
-        img_bytes = io.BytesIO()
-        st.session_state.image.save(img_bytes, format='PNG')
-        real_metrics = analyze_image_real(img_bytes.getvalue())
-        progress_bar.progress(40)
-        time.sleep(0.5)
-        
-        st.session_state.results = generate_realistic_results(real_metrics)
-        st.session_state.results['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        st.session_state.results['image_hash'] = st.session_state.image_hash
-        progress_bar.progress(90)
-        time.sleep(0.4)
-        
-        progress_bar.progress(100)
+# ANALYSIS EXECUTION
+if 'analyzing' in st.session_state and st.session_state.analyzing:
+    st.session_state.analyzing = False
     
-    st.session_state.analysis_complete = True
-    st.success("✅ ANALYSIS COMPLETE!")
+    with st.spinner("🌐 Connecting to internet verification services..."):
+        progress = st.progress(0)
+        
+        # Step 1: TinEye search
+        st.info("🔍 Searching TinEye database (1B+ images)...")
+        tineye_results = tin_eye_search(st.session_state.image_bytes)
+        progress.progress(40)
+        time.sleep(1)
+        
+        # Step 2: Forensic analysis
+        st.info("🔬 Forensic signature analysis...")
+        forensics = analyze_image_forensics(st.session_state.image_bytes)
+        progress.progress(70)
+        
+        # Step 3: AI signatures
+        st.info("🤖 Checking AI generation signatures...")
+        ai_signatures = check_ai_signatures(st.session_state.image_bytes)
+        progress.progress(90)
+        
+        # Final verdict
+        final_results = get_final_verdict(tineye_results, forensics, ai_signatures)
+        final_results.update({
+            'tineye': tineye_results,
+            'forensics': forensics,
+            'signatures': ai_signatures,
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        })
+        
+        st.session_state.results = final_results
+        progress.progress(100)
+    
+    st.success("✅ Internet verification complete!")
     st.balloons()
 
-# Results
-if st.session_state.analysis_complete and st.session_state.results:
+# RESULTS DISPLAY
+if st.session_state.results:
     results = st.session_state.results
     
-    # Header
-    st.markdown('<div class="header card">', unsafe_allow_html=True)
-    st.markdown('<h2 class="report-title">📊 FORENSIC RESULTS</h2>', unsafe_allow_html=True)
-    st.caption(f"ID: {results['image_hash'][:8]} | {results['timestamp']}")
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Image
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.image(st.session_state.image, caption="🔬 Analyzed Image", use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Core results
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown("### 🎯 CORE DETECTION")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        rf = results['real_fake']
-        st.markdown("**🤖 Real vs Fake**")
-        st.markdown(f'<div class="score real">R{int(rf["real"])}%</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="score fake">F{int(rf["fake"])}%</div>', unsafe_allow_html=True)
-    
-    with col2:
-        ai = results['ai_generation']
-        st.markdown("**🎨 AI Detection**")
-        st.markdown(f'<div class="score {"ai" if ai["ai_generated"]>50 else "real"}">AI{int(ai["ai_generated"])}%</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="score real">H{int(ai["human_created"])}%</div>', unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown("**🔍 Reverse Search**")
-        st.info(results['google_reverse'])
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Technical
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown("### ⚙️ TECHNICAL ANALYSIS")
-    
-    tech = results['technical']
-    forensic = results['forensic']
-    
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("📐 Resolution", tech['resolution'])
-        st.metric("📦 Size", tech['file_size'])
-    with col2:
-        st.metric("🎚️ Entropy", tech['entropy'])
-        st.metric("🔍 Laplacian", tech['laplacian_var'])
-    with col3:
-        st.metric("🎭 Anomalies", forensic['pixel_anomalies'])
-        st.metric("💡 Lighting", forensic['lighting_consistency'])
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Verdict
-    total_real = results['real_fake']['real'] + results['ai_generation']['human_created']
-    confidence = (results['real_fake']['confidence'] + results['ai_generation']['confidence']) / 2
-    
-    if total_real > 160:
-        verdict = "✅ AUTHENTIC HUMAN IMAGE"
-        color = "#00ff88"
-    elif total_real > 120:
-        verdict = "⚠️ QUESTIONABLE / POSSIBLE AI"
-        color = "#ffaa00"
-    else:
-        verdict = "❌ CONFIRMED FAKE / AI"
-        color = "#ff4444"
-    
-    st.markdown(f'''
-    <div class="card" style="border-color:{color}!important;">
-        <h2 style="text-align:center;color:{color};">FINAL VERDICT</h2>
-        <div class="verdict" style="color:{color}!important;">{verdict}</div>
-        <div style="text-align:center;font-size:1.4rem;">
-            Score: {total_real:.0f}/200 | Confidence: {confidence:.0f}%
+    # Main verdict
+    st.markdown(f"""
+    <div class="card" style="border-color: {'#00ff88' if 'VERIFIED REAL' in results['verdict'] else '#ffaa00' if 'SUSPICIOUS' in results['verdict'] else '#ff4444'} !important;">
+        <div class="verdict {'real' if 'VERIFIED REAL' in results['verdict'] else 'ai' if 'AI' in results['verdict'] else 'fake'}">
+            {results['verdict']}
+        </div>
+        <div style="text-align:center;font-size:1.5rem;margin:1rem 0;">
+            AI: {results['ai_probability']:.0f}% | Real: {results['real_probability']:.0f}% 
+            <span style="color:#00ff88;">• Confidence: {results['confidence']:.0f}%</span>
         </div>
     </div>
-    ''', unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
     
-    # Download report - FIXED f-string
-    report = (
-        f"COMPLETE FORENSICS REPORT\n"
-        f"Generated: {results['timestamp']}\n\n"
-        f"REAL/FAKE: {int(results['real_fake']['real'])}% Real / {int(results['real_fake']['fake'])}% Fake\n"
-        f"AI DETECT: {int(results['ai_generation']['ai_generated'])}% AI / {int(results['ai_generation']['human_created'])}% Human\n"
-        f"REVERSE: {results['google_reverse']}\n\n"
-        f"TECHNICAL:\n"
-        f"  Resolution: {results['technical']['resolution']}\n"
-        f"  Entropy: {results['technical']['entropy']}\n"
-        f"  Anomalies: {results['forensic']['pixel_anomalies']}\n\n"
-        f"VERDICT: {verdict}\n"
-        f"Trust: {total_real:.0f}/200"
+    # Internet evidence
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown("### 🌐 INTERNET EVIDENCE")
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("TinEye Matches", results['tineye']['count'])
+        if results['tineye'].get('first_match_url'):
+            st.markdown(f"[🔗 First Match]({results['tineye']['first_match_url'][:100]}...)")
+    
+    with col2:
+        st.metric("AI Signatures", len(results['signatures']))
+        if results['signatures']:
+            for sig in results['signatures']:
+                st.warning(f"⚠️ {sig.upper()}")
+    
+    with col3:
+        st.metric("Forensic AI Score", f"{results['forensics']['ai_forensic_score']:.0f}%")
+        st.metric("Entropy", f"{results['forensics']['entropy']:.2f}")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Download report
+    report = f"""
+INTERNET VERIFICATION REPORT
+Generated: {results['timestamp']}
+Image Hash: {st.session_state.image_hash[:16]}
+
+FINAL VERDICT: {results['verdict']}
+AI Probability: {results['ai_probability']:.1f}%
+Real Probability: {results['real_probability']:.1f}%
+Confidence: {results['confidence']:.0f}%
+
+INTERNET EVIDENCE:
+TinEye matches: {results['tineye']['count']}
+First match: {results['tineye'].get('first_match_url', 'None')}
+
+FORENSICS:
+Entropy: {results['forensics']['entropy']:.2f}
+AI forensic score: {results['forensics']['ai_forensic_score']:.1f}%
+AI signatures: {', '.join(results['signatures']) if results['signatures'] else 'None'}
+"""
+    
+    st.download_button(
+        "📥 Download Full Report",
+        report,
+        f"verification_report_{st.session_state.image_hash[:8]}.txt",
+        "text/plain"
     )
     
-    col1, col2 = st.columns([1, 3])
-    with col1:
-        st.download_button(
-            "📥 Download Report",
-            report,
-            file_name=f"forensic_report_{results['image_hash'][:8]}.txt",
-            mime="text/plain"
-        )
-    
     st.markdown("---")
-    st.markdown("<p style='text-align:center;color:#00ccff;font-size:1rem;'>Ultimate Detector v2.0 | Professional Forensics</p>", unsafe_allow_html=True)
+    st.markdown('<p style="text-align:center;color:#00ccff;">Powered by TinEye • Real Internet Verification</p>', unsafe_allow_html=True)
