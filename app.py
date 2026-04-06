@@ -3,7 +3,10 @@ import numpy as np
 from PIL import Image
 import io
 import time
-import joblib
+try:
+    import joblib
+except:
+    joblib = None
 
 # Safe import
 try:
@@ -19,7 +22,7 @@ def load_model():
     except:
         return None
 
-model = load_model()
+model = load_model() if joblib else None
 
 # ================= FEATURE EXTRACTION =================
 def extract_features(image_bytes):
