@@ -3,32 +3,28 @@ import numpy as np
 from PIL import Image
 import io
 import time
+import joblib
 
-# SAFE IMPORT
+# Safe import
 try:
     import cv2
 except:
     cv2 = None
 
-# ================= PAGE CONFIG =================
-st.set_page_config(page_title="Ultimate AI Detector", layout="wide")
+# ================= LOAD ML MODEL =================
+@st.cache_resource
+def load_model():
+    try:
+        return joblib.load("ai_model.pkl")
+    except:
+        return None
 
-# ================= FAKE DL (SAFE FALLBACK) =================
-def deep_learning_prediction(image_bytes):
-    # Simulated but stable (no crash)
-    return {"dl_ai_prob": 50.0}
+model = load_model()
 
-# ================= FORENSIC =================
-def forensic_analysis(image_bytes):
-
+# ================= FEATURE EXTRACTION =================
+def extract_features(image_bytes):
     if cv2 is None:
-        return {
-            "ai_forensic": 50,
-            "laplacian": 0,
-            "edge_density": 0,
-            "entropy": 0,
-            "noise": 0
-        }
+        return [50, 0.05, 7.0, 0.02]
 
     try:
         img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
@@ -46,33 +42,24 @@ def forensic_analysis(image_bytes):
         hist = hist / hist.sum()
         entropy = -np.sum(hist * np.log2(hist + 1e-7))
 
-        ai_score = 0
-        if laplacian < 50: ai_score += 25
-        if edge_density < 0.05: ai_score += 20
-        if noise < 0.02: ai_score += 20
-        if entropy > 7.5: ai_score += 15
-        if w in [512,768,1024] and h in [512,768,1024]: ai_score += 20
-
-        return {
-            "ai_forensic": ai_score,
-            "laplacian": laplacian,
-            "edge_density": edge_density,
-            "entropy": entropy,
-            "noise": noise
-        }
+        return [laplacian, edge_density, entropy, noise]
 
     except:
-        return {
-            "ai_forensic": 50,
-            "laplacian": 0,
-            "edge_density": 0,
-            "entropy": 0,
-            "noise": 0
-        }
+        return [50, 0.05, 7.0, 0.02]
 
-# ================= FINAL =================
-def final_decision(forensic, dl):
-    ai_prob = (0.7 * forensic["ai_forensic"]) + (0.3 * dl["dl_ai_prob"])
+# ================= ML PREDICTION =================
+def ml_prediction(features):
+    if model is None:
+        return 50.0
+
+    try:
+        pred = model.predict_proba([features])[0][1]
+        return float(pred * 100)
+    except:
+        return 50.0
+
+# ================= FINAL DECISION =================
+def final_decision(ai_prob):
     ai_prob = max(5, min(95, ai_prob))
 
     if ai_prob > 75:
@@ -85,7 +72,7 @@ def final_decision(forensic, dl):
     return verdict, ai_prob, 100 - ai_prob
 
 # ================= UI =================
-st.title("🔍 Ultimate AI Image Detector (Stable Version)")
+st.title("🔍 AI Image Detector (ML Version)")
 
 uploaded_file = st.file_uploader("Upload Image", type=["png","jpg","jpeg"])
 
@@ -99,17 +86,18 @@ if uploaded_file:
         with st.spinner("Analyzing..."):
             time.sleep(1)
 
-            forensic = forensic_analysis(img_bytes)
-            dl = deep_learning_prediction(img_bytes)
+            features = extract_features(img_bytes)
+            ai_prob = ml_prediction(features)
 
-            verdict, ai, real = final_decision(forensic, dl)
+            verdict, ai, real = final_decision(ai_prob)
 
         st.markdown(f"## {verdict}")
         st.write(f"🤖 AI Probability: {ai:.2f}%")
         st.write(f"✅ Real Probability: {real:.2f}%")
 
-        st.subheader("🔬 Forensic Details")
-        st.write(f"Texture (Laplacian): {forensic['laplacian']:.2f}")
-        st.write(f"Edge Density: {forensic['edge_density']:.4f}")
-        st.write(f"Entropy: {forensic['entropy']:.2f}")
-        st.write(f"Noise: {forensic['noise']:.4f}")
+        st.subheader("🔬 Extracted Features")
+        st.write(f"Laplacian: {features[0]:.2f}")
+        st.write(f"Edge Density: {features[1]:.4f}")
+        st.write(f"Entropy: {features[2]:.2f}")
+        st.write(f"Noise: {features[3]:.4f}")
+        
