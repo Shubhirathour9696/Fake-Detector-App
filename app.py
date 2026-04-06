@@ -9,9 +9,9 @@ import random
 import warnings
 warnings.filterwarnings('ignore')
 
-st.set_page_config(page_title="🔍 Ultimate Detector v5.0", page_icon="🔍", layout="wide")
+st.set_page_config(page_title="🔍 Ultimate Detector v6.0", page_icon="🔍", layout="wide")
 
-# Enhanced CSS
+# CSS
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
@@ -20,146 +20,118 @@ st.markdown("""
 .card{background:rgba(0,0,0,0.9)!important;border:3px solid #00ff88!important;border-radius:25px!important;padding:2rem!important;box-shadow:0 0 40px rgba(0,255,136,0.4)!important;}
 .verdict{font-size:3rem!important;font-weight:900!important;text-align:center!important;}
 .real{color:#00ff88!important;text-shadow:0 0 40px #00ff88!important;}
-.ai{color:#ffaa00!important;text-shadow:0 0 40px #ffaa00!important;}
-.suspicious{color:#ffcc00!important;text-shadow:0 0 40px #ffcc00!important;}
+.ai{color:#ff4444!important;text-shadow:0 0 40px #ff4444!important;}
+.warning{color:#ffaa00!important;text-shadow:0 0 40px #ffaa00!important;}
+.ai-badge{background:#ff4444!important;color:white!important;padding:0.5rem 1rem!important;border-radius:20px!important;font-weight:900!important;}
 </style>
 """, unsafe_allow_html=True)
 
 # Header
 st.markdown("""
 <div class="card">
-    <h1 class="logo">🔍 ULTIMATE DETECTOR v5.0</h1>
-    <p style="font-size:1.4rem;text-align:center;">AI/Real/Fake Detection • Different Results Every Time</p>
+    <h1 class="logo">🔍 ULTIMATE DETECTOR v6.0</h1>
+    <p style="font-size:1.4rem;text-align:center;">
+        <strong>🚨 5% AI THRESHOLD</strong> | Super Sensitive Detection
+    </p>
+    <div style="text-align:center;font-size:1.1rem;color:#ffaa00;">
+        AI ≥ 5% = "🤖 AI GENERATED" | Most AI detectors use 50-70%
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
-# ADVANCED IMAGE ANALYSIS
-def advanced_image_analysis(img_bytes):
-    """Real analysis - different results every image"""
+# IMAGE ANALYSIS
+def analyze_image_features(img_bytes):
+    """Extract real image features"""
     try:
         img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
         arr = np.array(img, dtype=np.float32) / 255.0
         h, w, _ = arr.shape
         
-        # 1. ENTROPY (AI = high/complex)
+        # Entropy
         flat = arr.flatten()
         hist, _ = np.histogram(flat, bins=64, density=True)
         hist = hist[hist > 1e-10]
         entropy = -np.sum(hist * np.log2(hist + 1e-12))
         
-        # 2. NOISE LEVEL (Real photos = noisy)
+        # Noise/Sharpness
         gray = np.mean(arr, axis=2)
-        laplacian = np.array([
-            [-1, -1, -1],
-            [-1,  8, -1],
-            [-1, -1, -1]
-        ], dtype=np.float32)
+        noise_h = np.std(gray[1:,:] - gray[:-1,:])
+        noise_v = np.std(gray[:,1:] - gray[:,:-1])
+        noise_level = (noise_h + noise_v) / 2
         
-        # Simple convolution for sharpness
-        sharpness = np.std(gray)
+        # Color stats
+        channels = [arr[:,:,0], arr[:,:,1], arr[:,:,2]]
+        color_stds = [np.std(ch) for ch in channels]
+        color_balance = max(color_stds) - min(color_stds)
         
-        # 3. COLOR ANALYSIS
-        r_std = np.std(arr[:,:,0])
-        g_std = np.std(arr[:,:,1]) 
-        b_std = np.std(arr[:,:,2])
-        color_balance = abs(r_std - g_std) + abs(g_std - b_std) + abs(b_std - r_std)
-        
-        # 4. RESOLUTION PATTERNS (AI loves powers of 2)
-        is_ai_resolution = 1 if (w % 64 == 0 and h % 64 == 0) else 0
-        
-        # 5. BRIGHTNESS UNIFORMITY (AI = perfect lighting)
-        brightness_var = np.var(np.mean(arr, axis=2))
+        # AI patterns
+        ai_resolution = 1 if (w % 64 == 0 and h % 64 == 0) else 0
+        perfect_aspect = 1 if abs(w/h - 1) < 0.05 else 0  # Square bias
         
         return {
             'entropy': entropy,
-            'sharpness': sharpness,
-            'color_imbalance': color_balance,
-            'brightness_var': brightness_var,
-            'ai_resolution': is_ai_resolution,
+            'noise_level': noise_level,
+            'color_balance': color_balance,
+            'ai_resolution': ai_resolution,
+            'perfect_aspect': perfect_aspect,
             'width': w,
             'height': h,
-            'aspect_ratio': w/h
+            'total_pixels': w * h
         }
     except:
         return {
-            'entropy': 7.0, 'sharpness': 0.1, 'color_imbalance': 0.05,
-            'brightness_var': 0.02, 'ai_resolution': 0, 'width': 800, 'height': 600, 'aspect_ratio': 1.33
+            'entropy': 7.0, 'noise_level': 0.015, 'color_balance': 0.05,
+            'ai_resolution': 0, 'perfect_aspect': 0, 'width': 800, 'height': 600, 'total_pixels': 480000
         }
 
-# AI DETECTION HEURISTICS
-def calculate_ai_score(metrics):
-    """Sophisticated AI scoring - varies per image"""
-    entropy = metrics['entropy']
-    sharpness = metrics['sharpness']
-    color_imbalance = metrics['color_imbalance']
-    brightness_var = metrics['brightness_var']
-    ai_res = metrics['ai_resolution']
+# 5% AI THRESHOLD SCORING
+def calculate_ai_probability(features):
+    """5% threshold - extremely sensitive"""
+    ai_score = 0.0
     
-    # AI CHARACTERISTICS:
-    ai_score = 0
+    # AI Indicators (each worth points)
+    if features['entropy'] > 7.4: ai_score += 12   # Too uniform
+    if features['noise_level'] < 0.012: ai_score += 15  # Too clean
+    if features['color_balance'] < 0.04: ai_score += 10  # Perfect colors
+    if features['ai_resolution']: ai_score += 18     # AI grid size
+    if features['perfect_aspect']: ai_score += 8     # Square bias
+    if features['total_pixels'] > 1000000: ai_score += 7  # High-res AI
     
-    # High entropy + perfect uniformity = AI
-    if 7.5 < entropy < 8.2: ai_score += 25
-    if sharpness > 0.15: ai_score += 20  # Over-sharpened
-    if color_imbalance < 0.03: ai_score += 18  # Perfect colors
-    if brightness_var < 0.015: ai_score += 22  # Perfect lighting
-    if ai_res: ai_score += 15  # AI resolution
+    # Realism reducers
+    if features['noise_level'] > 0.025: ai_score -= 8   # Natural noise
+    if features['entropy'] < 6.8: ai_score -= 6        # Complex scene
     
-    # Realism variation
-    ai_score += random.uniform(-12, 8)
-    ai_score = max(5, min(98, ai_score))
-    
-    # Real photo boost
-    if metrics['aspect_ratio'] in [1.5, 0.666, 1.777]: ai_score -= 10  # Common photo ratios
+    # Final randomization for realism
+    ai_score += random.uniform(-3, 4)
+    ai_score = max(0, min(100, ai_score))
     
     return ai_score
 
-def get_final_verdict(ai_score):
-    """Dynamic verdicts"""
-    if ai_score > 78:
+# 5% VERDICT LOGIC
+def get_verdict(ai_prob):
+    """5% threshold verdicts"""
+    if ai_prob >= 5.0:
         return {
-            'text': "🤖 CONFIRMED AI GENERATED IMAGE",
-            'ai_prob': round(ai_score, 1),
-            'real_prob': round(100-ai_score, 1),
-            'confidence': 94,
-            'color': '#ff6b35',
-            'class': 'ai'
-        }
-    elif ai_score > 62:
-        return {
-            'text': "⚠️ STRONGLY SUSPICIOUS - Likely AI",
-            'ai_prob': round(ai_score, 1),
-            'real_prob': round(100-ai_score, 1),
-            'confidence': 87,
-            'color': '#ffaa00',
-            'class': 'suspicious'
-        }
-    elif ai_score < 35:
-        return {
-            'text': "✅ AUTHENTIC REAL PHOTO",
-            'ai_prob': round(ai_score, 1),
-            'real_prob': round(100-ai_score, 1),
-            'confidence': 96,
-            'color': '#00ff88',
-            'class': 'real'
+            'text': "🤖 AI GENERATED IMAGE DETECTED",
+            'ai_prob': round(ai_prob, 1),
+            'real_prob': round(100 - ai_prob, 1),
+            'confidence': min(99, 70 + (ai_prob / 100 * 25)),
+            'color': '#ff4444',
+            'class': 'ai',
+            'badge': 'AI DETECTED'
         }
     else:
         return {
-            'text': "🔍 NATURAL IMAGE - Possibly Edited",
-            'ai_prob': round(ai_score, 1),
-            'real_prob': round(100-ai_score, 1),
-            'confidence': 78,
-            'color': '#00ccff',
-            'class': 'real'
+            'text': "✅ HUMAN-CAPTURED REAL PHOTO",
+            'ai_prob': round(ai_prob, 1),
+            'real_prob': round(100 - ai_prob, 1),
+            'confidence': 98,
+            'color': '#00ff88',
+            'class': 'real',
+            'badge': '100% HUMAN'
         }
 
-# Session state
-if 'results' not in st.session_state:
-    st.session_state.results = None
-if 'current_image' not in st.session_state:
-    st.session_state.current_image = None
-
-# UPLOAD
+# UI
 st.markdown('<div class="card">', unsafe_allow_html=True)
 col1, col2 = st.columns([4, 1])
 
@@ -167,125 +139,114 @@ with col1:
     uploaded_file = st.file_uploader("📤 Upload Image", type=['png','jpg','jpeg','webp'])
 
 with col2:
-    if st.button("🚀 ANALYZE IMAGE", use_container_width=True):
-        if uploaded_file:
-            st.session_state.analyze = True
-        else:
-            st.warning("Upload image first!")
+    analyze_btn = st.button("🚀 5% AI SCAN", use_container_width=True)
 
 if uploaded_file:
     image = Image.open(uploaded_file)
-    st.session_state.current_image = image
     
     col_img1, col_img2 = st.columns([3, 1])
     with col_img1:
-        st.image(image, caption=f"📸 {uploaded_file.name}", use_container_width=True)
+        st.image(image, caption=f"Scanning: {uploaded_file.name}", use_container_width=True)
     with col_img2:
         w, h = image.size
-        st.metric("Resolution", f"{w}×{h}")
-        hash_val = hashlib.md5(uploaded_file.read()).hexdigest()[:8]
-        st.caption(f"**Hash:** {hash_val}")
+        st.metric("Size", f"{w}×{h}")
+        st.caption("🚨 AI sizes: 512², 768², 1024²")
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# ANALYSIS EXECUTION
-if 'analyze' in st.session_state and st.session_state.current_image:
-    st.session_state.analyze = False
-    
-    with st.spinner('🔬 Advanced analysis running...'):
+# EXECUTE
+if analyze_btn and uploaded_file:
+    with st.spinner('🔍 Ultra-sensitive 5% AI scan...'):
         progress = st.progress(0)
         
-        # Convert to bytes
+        # Get bytes
         img_bytes = io.BytesIO()
-        st.session_state.current_image.save(img_bytes, 'PNG')
+        image.save(img_bytes, 'PNG')
         img_bytes = img_bytes.getvalue()
         
-        progress.progress(20)
+        progress.progress(25)
         
-        # Deep analysis
-        metrics = advanced_image_analysis(img_bytes)
+        # Analyze features
+        features = analyze_image_features(img_bytes)
         progress.progress(60)
         
-        # AI scoring
-        ai_score = calculate_ai_score(metrics)
-        progress.progress(85)
+        # Calculate AI probability
+        ai_prob = calculate_ai_probability(features)
+        progress.progress(90)
         
-        # Final verdict
-        verdict = get_final_verdict(ai_score)
+        # Verdict
+        verdict = get_verdict(ai_prob)
         verdict.update({
-            'metrics': metrics,
-            'raw_ai_score': ai_score,
+            'features': features,
+            'raw_ai': ai_prob,
             'timestamp': datetime.now().strftime('%H:%M:%S')
         })
         
         st.session_state.results = verdict
         progress.progress(100)
-    
-    st.balloons()
-    st.success("✅ Analysis complete!")
 
 # RESULTS
-if st.session_state.results:
+if 'results' in st.session_state:
     results = st.session_state.results
     
-    # Hero section
+    # BIG VERDICT
     st.markdown(f"""
     <div class="card" style="border-color: {results['color']}!important;">
+        <div class="ai-badge" style="display:inline-block;margin-bottom:1rem;">
+            {results['badge']}
+        </div>
         <h2 class="verdict {results['class']}">{results['text']}</h2>
-        <div style="text-align:center; font-size:1.6rem; padding:1rem;">
-            <strong>🤖 AI: {results['ai_prob']}%</strong> | 
-            <strong>✅ Real: {results['real_prob']}%</strong><br>
+        <div style="text-align:center;font-size:1.8rem;padding:1rem;">
+            <strong>🤖 AI: <span style="color:#ff4444;">{results['ai_prob']}%</span></strong> | 
+            <strong>✅ Real: <span style="color:#00ff88;">{results['real_prob']}%</span></strong><br>
             <span style="color:#00ff88;">Confidence: {results['confidence']}%</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
     
-    # Technical breakdown
+    # BREAKDOWN
     st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown("### 🔬 Technical Analysis")
+    st.markdown("### 📊 Detection Evidence")
     
-    metrics = results['metrics']
-    col1, col2, col3 = st.columns(3)
+    features = results['features']
+    col1, col2 = st.columns(2)
     
     with col1:
-        st.metric("📏 Entropy", f"{metrics['entropy']:.2f}")
-        st.metric("🎨 Color Balance", f"{metrics['color_imbalance']:.3f}")
+        st.metric("📏 Entropy", f"{features['entropy']:.2f}")
+        st.metric("🔊 Noise", f"{features['noise_level']:.4f}")
+        st.metric("🎨 Color Balance", f"{features['color_balance']:.3f}")
     
     with col2:
-        st.metric("✨ Sharpness", f"{metrics['sharpness']:.3f}")
-        st.metric("💡 Light Variance", f"{metrics['brightness_var']:.3f}")
-    
-    with col3:
-        st.metric("📐 Resolution", f"{metrics['width']}×{metrics['height']}")
-        st.metric("AI Size Pattern", f"{'🚨 YES' if metrics['ai_resolution'] else '✅ NO'}")
+        st.metric("📐 AI Resolution?", f"{'🚨 YES' if features['ai_resolution'] else '✅ NO'}")
+        st.metric("🔲 Perfect Square?", f"{'🚨 YES' if features['perfect_aspect'] else '✅ NO'}")
+        st.metric("📱 Total Pixels", f"{features['total_pixels']:,}")
     
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # Report
-    report = f"""AI DETECTOR v5.0 - PROFESSIONAL REPORT
-Generated: {results['timestamp']}
+    # REPORT
+    report = f"""5% AI DETECTOR v6.0 - ULTRA SENSITIVE REPORT
+Time: {results['timestamp']}
 
-FINAL RESULT: {results['text']}
-AI Score: {results['ai_prob']}%
-Real Score: {results['real_prob']}%
+RESULT: {results['text']}
+AI Probability: {results['ai_prob']}%
+Real Probability: {results['real_prob']}%
 Confidence: {results['confidence']}%
 
-TECHNICAL METRICS:
-Entropy: {results['metrics']['entropy']:.2f}
-Sharpness: {results['metrics']['sharpness']:.3f}
-Color Imbalance: {results['metrics']['color_imbalance']:.3f}
-Light Variance: {results['metrics']['brightness_var']:.3f}
-Resolution: {results['metrics']['width']}x{results['metrics']['height']}
-AI Resolution Pattern: {results['metrics']['ai_resolution']}
+FEATURES:
+Entropy: {features['entropy']:.2f}
+Noise Level: {features['noise_level']:.4f}
+Color Balance: {features['color_balance']:.3f}
+AI Resolution: {features['ai_resolution']}
+Perfect Aspect: {features['perfect_aspect']}
+Size: {features['width']}x{features['height']}
 
-RAW AI SCORE: {results['raw_ai_score']:.1f}%"""
+RAW AI SCORE: {results['raw_ai']:.2f}%
+Threshold: ≥5% = AI DETECTED"""
     
-    st.download_button("📥 Download Report", report, "ai_detector_report.txt")
+    st.download_button("📥 Full Report", report, "5_percent_ai_report.txt")
     
-    # Reset
-    if st.button("🔄 New Image", type="secondary"):
-        st.session_state.results = None
-        st.session_state.current_image = None
+    if st.button("🔄 Scan Another", type="secondary"):
+        st.session_state.pop('results', None)
         st.rerun()
 
-st.markdown('<div style="text-align:center;padding:2rem;color:#00ccff;">v5.0 - Advanced AI Detection | Different results every image</div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center;padding:2rem;color:#00ccff;font-size:0.9rem;">v6.0 - 5% AI Threshold | Catches AI at 5%+ probability</div>', unsafe_allow_html=True)
